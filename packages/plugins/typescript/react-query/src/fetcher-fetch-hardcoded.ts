@@ -38,9 +38,12 @@ export class HardcodedFetchFetcher implements FetcherRenderer {
 
   generateFetcherImplementaion(): string {
     return `
+import type { QueryFunctionContext, } from '@tanstack/react-query';
+
 function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
-  return async (): Promise<TData> => {
+  return async (context?: QueryFunctionContext): Promise<TData> => {
     const res = await fetch(${this.getEndpoint()}, {
+      signal: (context || {}).signal,
 ${this.getFetchParams()}
       body: JSON.stringify({ query, variables }),
     });
@@ -83,7 +86,7 @@ ${this.getFetchParams()}
     ) =>
     ${hookConfig.infiniteQuery.hook}<${operationResultType}, TError, TData>(
       ${generateInfiniteQueryKey(node, hasRequiredVariables)},
-      (metaData) => fetcher<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName}, {...variables, ...(metaData.pageParam ?? {})})(),
+      (metaData) => fetcher<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName}, {...variables, ...(metaData.pageParam ?? {})})(metaData),
       options
     );`;
   }

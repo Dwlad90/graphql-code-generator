@@ -6,6 +6,9 @@ import {
   UseInfiniteQueryOptions,
   UseMutationOptions,
 } from '@tanstack/react-query';
+
+import type { QueryFunctionContext } from '@tanstack/react-query';
+
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -13,9 +16,10 @@ export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: 
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
 
 function fetcher<TData, TVariables>(endpoint: string, requestInit: RequestInit, query: string, variables?: TVariables) {
-  return async (): Promise<TData> => {
+  return async (context?: QueryFunctionContext): Promise<TData> => {
     const res = await fetch(endpoint, {
       method: 'POST',
+      signal: context?.signal,
       ...requestInit,
       body: JSON.stringify({ query, variables }),
     });

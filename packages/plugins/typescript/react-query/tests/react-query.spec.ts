@@ -33,10 +33,13 @@ describe('React-Query', () => {
     expect(out.prepend).toEqual([
       `import { useQuery, useInfiniteQuery, useMutation, type UseQueryOptions, type UseInfiniteQueryOptions, type UseMutationOptions } from '@tanstack/react-query';`,
       `
+    import type { QueryFunctionContext, } from '@tanstack/react-query';
+
 function fetcher<TData, TVariables>(endpoint: string, requestInit: RequestInit, query: string, variables?: TVariables) {
-  return async (): Promise<TData> => {
+  return async (context?: QueryFunctionContext): Promise<TData> => {
     const res = await fetch(endpoint, {
       method: 'POST',
+      signal: (context || {}).signal,
       ...requestInit,
       body: JSON.stringify({ query, variables }),
     });
@@ -93,7 +96,7 @@ export const useInfiniteTestQuery = <
     ) =>
     useInfiniteQuery<TestQuery, TError, TData>(
       variables === undefined ? ['test.infinite'] : ['test.infinite', variables],
-      (metaData) => fetcher<TestQuery, TestQueryVariables>(dataSource.endpoint, dataSource.fetchParams || {}, TestDocument, {...variables, ...(metaData.pageParam ?? {})})(),
+      (metaData) => fetcher<TestQuery, TestQueryVariables>(dataSource.endpoint, dataSource.fetchParams || {}, TestDocument, {...variables, ...(metaData.pageParam ?? {})})(metaData),
       options
     );
 
@@ -268,7 +271,7 @@ export const useTestMutation = <
     ) =>{
     return useInfiniteQuery<TTestQuery, TError, TData>(
       variables === undefined ? ['test.infinite'] : ['test.infinite', variables],
-      (metaData) => myCustomFetcher<TTestQuery, TTestQueryVariables>(TestDocument, {...variables, ...(metaData.pageParam ?? {})})(),
+      (metaData) => myCustomFetcher<TTestQuery, TTestQueryVariables>(TestDocument, {...variables, ...(metaData.pageParam ?? {})})(metaData),
       options
     )};`);
       expect(out.content).toBeSimilarStringTo(`export const useTestMutation = <
@@ -762,25 +765,28 @@ export const useTestMutation = <
       expect(out.prepend).toContain(
         `import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from 'react-query';`
       );
+      expect(out.prepend[1]).toContain(`import type { QueryFunctionContext, } from '@tanstack/react-query';`);
       expect(out.prepend[1])
         .toBeSimilarStringTo(`    function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
-        return async (): Promise<TData> => {
-          const res = await fetch("http://localhost:3000/graphql", {
-            method: "POST",
-            body: JSON.stringify({ query, variables }),
-          });
+      return async (context?: QueryFunctionContext): Promise<TData> => {
+        const res = await fetch("http://localhost:3000/graphql", {
+          signal: (context || {}).signal,
+          method: "POST",
+          body: JSON.stringify({ query, variables }),
+        });
 
-          const json = await res.json();
+        const json = await res.json();
 
-          if (json.errors) {
-            const { message } = json.errors[0];
+        if (json.errors) {
+          const { message } = json.errors[0];
 
-            throw new Error(message);
-          }
-
-          return json.data;
+          throw new Error(message);
         }
-      }`);
+
+        return json.data;
+      }
+    }
+      `);
       expect(out.content).toBeSimilarStringTo(`export const useTestQuery = <
         TData = TTestQuery,
         TError = unknown
@@ -825,9 +831,12 @@ export const useTestMutation = <
 
       expect(out.prepend[1]).toMatchInlineSnapshot(`
         "
+        import type { QueryFunctionContext, } from '@tanstack/react-query';
+
         function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
-          return async (): Promise<TData> => {
+          return async (context?: QueryFunctionContext): Promise<TData> => {
             const res = await fetch("http://localhost:3000/graphql", {
+              signal: (context || {}).signal,
             method: "POST",
             ...({"headers":{"Authorization":"Bearer XYZ"}}),
               body: JSON.stringify({ query, variables }),
@@ -867,9 +876,12 @@ export const useTestMutation = <
 
       expect(out.prepend[1]).toMatchInlineSnapshot(`
         "
+        import type { QueryFunctionContext, } from '@tanstack/react-query';
+
         function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
-          return async (): Promise<TData> => {
+          return async (context?: QueryFunctionContext): Promise<TData> => {
             const res = await fetch("http://localhost:3000/graphql", {
+              signal: (context || {}).signal,
             method: "POST",
             ...({"headers":{"Authorization":"Bearer XYZ"}}),
               body: JSON.stringify({ query, variables }),
@@ -902,31 +914,34 @@ export const useTestMutation = <
 
       const out = (await plugin(schema, docs, config)) as Types.ComplexPluginOutput;
 
-      expect(out.prepend[1])
-        .toBeSimilarStringTo(`function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
-        return async (): Promise<TData> => {
-          const res = await fetch(process.env.ENDPOINT_URL as string, {
-            method: "POST",
-            body: JSON.stringify({ query, variables }),
-          });
+      expect(out.prepend[1]).toBeSimilarStringTo(`import type { QueryFunctionContext, } from '@tanstack/react-query';
 
-          const json = await res.json();
+function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
+  return async (context?: QueryFunctionContext): Promise<TData> => {
+    const res = await fetch(process.env.ENDPOINT_URL as string, {
+      signal: (context || {}).signal,
+    method: "POST",
+      body: JSON.stringify({ query, variables }),
+    });
 
-          if (json.errors) {
-            const { message } = json.errors[0];
+    const json = await res.json();
 
-            throw new Error(message);
-          }
+    if (json.errors) {
+      const { message } = json.errors[0];
 
-          return json.data;
-        }
-      }`);
+      throw new Error(message);
+    }
+
+    return json.data;
+  }
+}
+      `);
 
       expect(out.content).toMatchSnapshot();
       await validateTypeScript(mergeOutputs(out), schema, docs, config);
     });
 
-    it('Should generate query correctly with hardcoded endpoint from just identifier', async () => {
+    it('§', async () => {
       const config = {
         fetcher: {
           endpoint: 'myEndpoint',
@@ -936,25 +951,28 @@ export const useTestMutation = <
 
       const out = (await plugin(schema, docs, config)) as Types.ComplexPluginOutput;
 
-      expect(out.prepend[1])
-        .toBeSimilarStringTo(`    function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
-        return async (): Promise<TData> => {
-          const res = await fetch(myEndpoint as string, {
-            method: "POST",
-            body: JSON.stringify({ query, variables }),
-          });
+      expect(out.prepend[1]).toBeSimilarStringTo(`import type { QueryFunctionContext, } from '@tanstack/react-query';
 
-          const json = await res.json();
+function fetcher<TData, TVariables>(query: string, variables?: TVariables) {
+  return async (context?: QueryFunctionContext): Promise<TData> => {
+    const res = await fetch(myEndpoint as string, {
+      signal: (context || {}).signal,
+      method: "POST",
+      body: JSON.stringify({ query, variables }),
+    });
 
-          if (json.errors) {
-            const { message } = json.errors[0];
+    const json = await res.json();
 
-            throw new Error(message);
-          }
+    if (json.errors) {
+      const { message } = json.errors[0];
 
-          return json.data;
-        }
-      }`);
+      throw new Error(message);
+    }
+
+    return json.data;
+  }
+}
+      `);
 
       expect(out.content).toMatchSnapshot();
       await validateTypeScript(mergeOutputs(out), schema, docs, config);
@@ -1313,7 +1331,9 @@ export const useTestMutation = <
 
     expect(outGraphqlRequest.prepend).toBeSimilarStringTo(`
     const res = await fetch(process.env.ENDPOINT as string, {
-      method: "POST", ...(
+      signal: (context || {}).signal,
+      method: "POST",
+      ...(
                 {
                   headers: {
                     apiKey: process.env.APIKEY as string,

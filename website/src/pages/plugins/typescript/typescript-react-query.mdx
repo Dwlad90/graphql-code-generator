@@ -196,14 +196,17 @@ Depending on the `isReactHook` property, your `myFetcher` should be in the follo
 #### Usage example (`isReactHook: false`)
 
 ```tsx
+import type { QueryFunctionContext, } from '@tanstack/react-query';
+
 export const fetchData = <TData, TVariables>(
   query: string,
   variables?: TVariables,
   options?: RequestInit['headers']
-): (() => Promise<TData>) => {
-  return async () => {
+): ((context?: QueryFunctionContext) => Promise<TData>) => {
+  return async (context?: QueryFunctionContext) => {
     const res = await fetch('https://api.url', {
       method: 'POST',
+      signal: (context || {}).signal,
       headers: {
         'Content-Type': 'application/json',
         ...options

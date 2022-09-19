@@ -14,10 +14,13 @@ export class FetchFetcher implements FetcherRenderer {
 
   generateFetcherImplementaion(): string {
     return `
+    import type { QueryFunctionContext, } from '@tanstack/react-query';
+
 function fetcher<TData, TVariables>(endpoint: string, requestInit: RequestInit, query: string, variables?: TVariables) {
-  return async (): Promise<TData> => {
+  return async (context?: QueryFunctionContext): Promise<TData> => {
     const res = await fetch(endpoint, {
       method: 'POST',
+      signal: (context || {}).signal,
       ...requestInit,
       body: JSON.stringify({ query, variables }),
     });
@@ -61,7 +64,7 @@ function fetcher<TData, TVariables>(endpoint: string, requestInit: RequestInit, 
     ) =>
     ${hookConfig.infiniteQuery.hook}<${operationResultType}, TError, TData>(
       ${generateInfiniteQueryKey(node, hasRequiredVariables)},
-      (metaData) => fetcher<${operationResultType}, ${operationVariablesTypes}>(dataSource.endpoint, dataSource.fetchParams || {}, ${documentVariableName}, {...variables, ...(metaData.pageParam ?? {})})(),
+      (metaData) => fetcher<${operationResultType}, ${operationVariablesTypes}>(dataSource.endpoint, dataSource.fetchParams || {}, ${documentVariableName}, {...variables, ...(metaData.pageParam ?? {})})(metaData),
       options
     );`;
   }

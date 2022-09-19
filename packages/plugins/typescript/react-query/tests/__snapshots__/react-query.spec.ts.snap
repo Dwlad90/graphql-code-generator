@@ -100,7 +100,7 @@ export const useInfiniteTestQuery = <
     
     return useInfiniteQuery<TTestQuery, TError, TData>(
       variables === undefined ? ['test.infinite'] : ['test.infinite', variables],
-      (metaData) => myCustomFetcher<TTestQuery, TTestQueryVariables>(TestDocument, {...variables, ...(metaData.pageParam ?? {})})(),
+      (metaData) => myCustomFetcher<TTestQuery, TTestQueryVariables>(TestDocument, {...variables, ...(metaData.pageParam ?? {})})(metaData),
       options
     )};
 
@@ -461,7 +461,7 @@ export const useTestMutation = <
     );"
 `;
 
-exports[`React-Query fetcher: hardcoded-fetch Should generate query correctly with hardcoded endpoint from just identifier 1`] = `
+exports[`React-Query fetcher: hardcoded-fetch § 1`] = `
 "
 export const TestDocument = \`
     query test {
